@@ -2,7 +2,6 @@
 <html lang="zh">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>2D 氣體分子運動模擬</title>
   <style>
     body { text-align: center; background: #f5f5f5; font-family: sans-serif; }
@@ -14,7 +13,8 @@
 <body>
   <h1>2D 氣體分子運動模擬</h1>
   <div class="controls">
-    <label>初始溫度: <input type="number" id="tempInput" value="4000" min="1000" max="100000"></label>
+    <label>初始溫度: <input type="range" id="tempInput" min="1000" max="100000" value="4000" step="100"></label>
+    <span id="tempValue">4000</span>
     <button id="startBtn">開始</button>
     <button id="resetBtn">重設</button>
     <button id="randomBtn">隨機化速度</button>
@@ -29,6 +29,13 @@
     let radius = 5;
     let initialTemp = 4000;
     let running = false;
+
+    // 更新顯示溫度值
+    const tempInput = document.getElementById("tempInput");
+    const tempValue = document.getElementById("tempValue");
+    tempInput.addEventListener("input", () => {
+      tempValue.textContent = tempInput.value;
+    });
 
     function initParticles() {
       particles = [];
@@ -62,8 +69,8 @@
 
     document.getElementById("startBtn").onclick = () => {
       if (!running) {
-        initialTemp = parseFloat(document.getElementById("tempInput").value);
-        document.getElementById("tempInput").disabled = true;
+        initialTemp = parseFloat(tempInput.value);
+        tempInput.disabled = true;
         initParticles();
         running = true;
         update();
@@ -84,7 +91,7 @@
 
     document.getElementById("resetBtn").onclick = () => {
       running = false;
-      document.getElementById("tempInput").disabled = false;
+      tempInput.disabled = false;
       initParticles();
       ctx.clearRect(0, 0, canvas.width, canvas.height);
     };
