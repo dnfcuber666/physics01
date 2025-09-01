@@ -1,37 +1,41 @@
 <!DOCTYPE html>
 <html lang="zh">
 <head>
-  <meta charset="UTF-8" />
-  <title>2D 氣體分子運動模擬</title>
-  <style>
-    body { text-align: center; background: #f5f5f5; font-family: sans-serif; }
-    canvas { background: #fff; display: block; margin: 10px auto; border: 1px solid #ccc; }
-    .controls { margin: 10px; }
-    input, button { margin: 5px; }
-    .stats { margin: 10px; font-size: 18px; }
-  </style>
+<meta charset="UTF-8" />
+<title>2D 氣體分子運動模擬</title>
+<style>
+body { text-align: center; background: #f5f5f5; font-family: sans-serif; }
+canvas { background: #fff; display: block; margin: 10px auto; border: 1px solid #ccc; }
+.controls { margin: 10px; }
+input, button { margin: 5px; }
+.stats { margin: 10px; font-size: 18px; }
+#colorBar { width: 600px; height: 20px; margin: 10px auto; border:1px solid #ccc; }
+</style>
 </head>
 <body>
-  <h1>2D 氣體分子運動模擬</h1>
-  <div class="controls">
-    <label>初始溫度: <input type="range" id="tempInput" min="1000" max="50000" value="4000" step="100"></label>
-    <span id="tempValue">4000</span>
-    <label>粒子數量: <input type="range" id="numInput" min="50" max="500" value="200" step="1"></label>
-    <span id="numValue">200</span>
-    <button id="startBtn">開始</button>
-    <button id="resetBtn">停止</button>
-  </div>
-  <div class="stats">
-    平均速度: <span id="avgSpeed">0</span> |
-    RMS速度: <span id="rmsSpeed">0</span> |
-    壓力: <span id="pressure">0</span> |
-    <span id="avgFrames">幀數: 0</span>
-  </div>
-  <canvas id="simCanvas" width="600" height="400"></canvas>
+<h1>2D 氣體分子運動模擬</h1>
+<div class="controls">
+  <label>初始溫度: <input type="range" id="tempInput" min="1000" max="50000" value="4000" step="100"></label>
+  <span id="tempValue">4000</span>
+  <label>粒子數量: <input type="range" id="numInput" min="50" max="500" value="200" step="1"></label>
+  <span id="numValue">200</span>
+  <button id="startBtn">開始</button>
+  <button id="resetBtn">停止</button>
+</div>
+<div class="stats">
+  平均速度: <span id="avgSpeed">0</span> |
+  RMS速度: <span id="rmsSpeed">0</span> |
+  壓力: <span id="pressure">0</span> |
+  <span id="avgFrames">幀數: 0</span>
+</div>
+<canvas id="simCanvas" width="600" height="400"></canvas>
+<canvas id="colorBar"></canvas>
 
 <script>
 const canvas = document.getElementById("simCanvas");
 const ctx = canvas.getContext("2d");
+const colorBar = document.getElementById("colorBar");
+const colorCtx = colorBar.getContext("2d");
 
 let particles = [];
 let numParticles = 200;
@@ -54,11 +58,9 @@ const rmsSpeedEl = document.getElementById("rmsSpeed");
 const pressureEl = document.getElementById("pressure");
 const avgFramesEl = document.getElementById("avgFrames");
 
-// 更新滑桿顯示
 tempInput.addEventListener("input", () => tempValue.textContent = tempInput.value);
 numInput.addEventListener("input", () => numValue.textContent = numInput.value);
 
-// 初始化粒子
 function initParticles() {
   particles = [];
   let speedScale = Math.sqrt(initialTemp)/100;
@@ -66,24 +68,18 @@ function initParticles() {
     let angle = Math.random()*2*Math.PI;
     let vx = speedScale * Math.cos(angle);
     let vy = speedScale * Math.sin(angle);
-    particles.push({
-      x: Math.random()*(canvas.width-2*radius)+radius,
-      y: Math.random()*(canvas.height-2*radius)+radius,
-      vx: vx,
-      vy: vy,
-      radius: radius,
-      mass: 1
-    });
+    particles.push({ x: Math.random()*(canvas.width-2*radius)+radius,
+                     y: Math.random()*(canvas.height-2*radius)+radius,
+                     vx: vx, vy: vy,
+                     radius: radius, mass:1 });
   }
   impulseHistory = [];
   avgSpeedHistory = [];
   rmsSpeedHistory = [];
 }
 
-// 計算平均速度與 RMS 速度
 function computeStats(){
-  let totalSpeed = 0;
-  let totalSpeedSq = 0;
+  let totalSpeed=0, totalSpeedSq=0;
   for(let p of particles){
     let v = Math.sqrt(p.vx*p.vx + p.vy*p.vy);
     totalSpeed += v;
@@ -94,48 +90,34 @@ function computeStats(){
 
   avgSpeedHistory.push(avgSpeed);
   rmsSpeedHistory.push(rmsSpeed);
-  if(avgSpeedHistory.length > framesForAverage) avgSpeedHistory.shift();
-  if(rmsSpeedHistory.length > framesForAverage) rmsSpeedHistory.shift();
+  if(avgSpeedHistory.length>framesForAverage) avgSpeedHistory.shift();
+  if(rmsSpeedHistory.length>framesForAverage) rmsSpeedHistory.shift();
 
-  let avgSpeedSmoothed = avgSpeedHistory.reduce((a,b)=>a+b,0)/avgSpeedHistory.length;
-  let rmsSpeedSmoothed = rmsSpeedHistory.reduce((a,b)=>a+b,0)/rmsSpeedHistory.length;
-
-  avgSpeedEl.textContent = avgSpeedSmoothed.toFixed(2);
-  rmsSpeedEl.textContent = rmsSpeedSmoothed.toFixed(2);
+  avgSpeedEl.textContent = (avgSpeedHistory.reduce((a,b)=>a+b,0)/avgSpeedHistory.length).toFixed(2);
+  rmsSpeedEl.textContent = (rmsSpeedHistory.reduce((a,b)=>a+b,0)/rmsSpeedHistory.length).toFixed(2);
 }
 
-// 分子碰撞處理
 function handleCollisions(){
   for(let i=0;i<particles.length;i++){
     for(let j=i+1;j<particles.length;j++){
-      let p1 = particles[i], p2 = particles[j];
-      let dx = p2.x - p1.x;
-      let dy = p2.y - p1.y;
+      let p1=particles[i], p2=particles[j];
+      let dx=p2.x-p1.x, dy=p2.y-p1.y;
       let dist = Math.sqrt(dx*dx + dy*dy);
-      if(dist < p1.radius + p2.radius){
-        let nx = dx/dist;
-        let ny = dy/dist;
-        let p = 2*(p1.vx*nx + p1.vy*ny - p2.vx*nx - p2.vy*ny)/(p1.mass + p2.mass);
-        p1.vx -= p*p2.mass*nx;
-        p1.vy -= p*p2.mass*ny;
-        p2.vx += p*p1.mass*nx;
-        p2.vy += p*p1.mass*ny;
-
-        let overlap = p1.radius + p2.radius - dist;
-        if(overlap>0){
-          p1.x -= nx*overlap/2;
-          p1.y -= ny*overlap/2;
-          p2.x += nx*overlap/2;
-          p2.y += ny*overlap/2;
-        }
+      if(dist<p1.radius+p2.radius){
+        let nx=dx/dist, ny=dy/dist;
+        let p = 2*(p1.vx*nx+p1.vy*ny - p2.vx*nx - p2.vy*ny)/(p1.mass+p2.mass);
+        p1.vx -= p*p2.mass*nx; p1.vy -= p*p2.mass*ny;
+        p2.vx += p*p1.mass*nx; p2.vy += p*p1.mass*ny;
+        let overlap = p1.radius+p2.radius-dist;
+        if(overlap>0){ p1.x -= nx*overlap/2; p1.y -= ny*overlap/2; p2.x += nx*overlap/2; p2.y += ny*overlap/2;}
       }
     }
   }
 }
 
-// 顏色對應速度（絕對速度，紅→灰→藍）
-function getColorByAbsoluteSpeed(speed, referenceSpeed){
-  const t = Math.min(speed/referenceSpeed,1);
+// 紅→灰→藍 (紅最快)
+function getColorByAbsoluteSpeed(speed, maxSpeed){
+  const t = Math.min(speed/maxSpeed,1);
   if(t<0.5){
     const ratio = t/0.5;
     const r = Math.floor(255*(1-ratio)+211*ratio);
@@ -151,44 +133,54 @@ function getColorByAbsoluteSpeed(speed, referenceSpeed){
   }
 }
 
-// 更新畫面
+// 顏色刻度條
+function drawColorBar(){
+  const grad=colorCtx.createLinearGradient(0,0,colorBar.width,0);
+  grad.addColorStop(0,'#add8e6'); // 藍
+  grad.addColorStop(0.5,'#d3d3d3'); // 灰
+  grad.addColorStop(1,'#ff0000'); // 紅
+  colorCtx.fillStyle=grad;
+  colorCtx.fillRect(0,0,colorBar.width,colorBar.height);
+  colorCtx.fillStyle='black';
+  colorCtx.font='14px sans-serif';
+  colorCtx.fillText('慢',0,15);
+  colorCtx.fillText('中',colorBar.width/2-10,15);
+  colorCtx.fillText('快',colorBar.width-25,15);
+}
+
 function update(){
   ctx.clearRect(0,0,canvas.width,canvas.height);
-  let frameImpulse = 0;
-  const referenceSpeed = Math.sqrt(initialTemp)/100*1.5;
+  let frameImpulse=0;
+  const maxSpeed = Math.sqrt(initialTemp)/100*1.5;
 
   for(let p of particles){
-    p.x += p.vx;
-    p.y += p.vy;
-
+    p.x += p.vx; p.y += p.vy;
     if(p.x-p.radius<0){ frameImpulse+=Math.abs(2*p.vx)*10000; p.vx*=-1; p.x=p.radius;}
     if(p.x+p.radius>canvas.width){ frameImpulse+=Math.abs(2*p.vx)*10000; p.vx*=-1; p.x=canvas.width-p.radius;}
     if(p.y-p.radius<0){ frameImpulse+=Math.abs(2*p.vy)*10000; p.vy*=-1; p.y=p.radius;}
     if(p.y+p.radius>canvas.height){ frameImpulse+=Math.abs(2*p.vy)*10000; p.vy*=-1; p.y=canvas.height-p.radius;}
 
-    let speed = Math.sqrt(p.vx*p.vx + p.vy*p.vy);
-    ctx.fillStyle = getColorByAbsoluteSpeed(speed, referenceSpeed);
-    ctx.beginPath();
-    ctx.arc(p.x,p.y,p.radius,0,2*Math.PI);
-    ctx.fill();
+    let speed=Math.sqrt(p.vx*p.vx + p.vy*p.vy);
+    ctx.fillStyle = getColorByAbsoluteSpeed(speed,maxSpeed);
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.radius,0,2*Math.PI); ctx.fill();
   }
 
   handleCollisions();
 
   impulseHistory.push(frameImpulse);
   if(impulseHistory.length>framesForAverage) impulseHistory.shift();
-
   let totalImpulse = impulseHistory.reduce((a,b)=>a+b,0);
-  let containerLength = 2*(canvas.width + canvas.height);
+  let containerLength = 2*(canvas.width+canvas.height);
   let P = totalImpulse/containerLength/impulseHistory.length;
   pressureEl.textContent = P.toFixed(2);
   avgFramesEl.textContent = `幀數: ${impulseHistory.length}`;
 
   computeStats();
+  drawColorBar();
+
   if(running) requestAnimationFrame(update);
 }
 
-// 按鈕事件
 document.getElementById("startBtn").onclick = () => {
   if(!running){
     initialTemp = parseFloat(tempInput.value);
@@ -202,18 +194,20 @@ document.getElementById("startBtn").onclick = () => {
 };
 
 document.getElementById("resetBtn").onclick = () => {
-  running = false;
-  tempInput.disabled = false;
-  numInput.disabled = false;
+  running=false;
+  tempInput.disabled=false;
+  numInput.disabled=false;
   initParticles();
   ctx.clearRect(0,0,canvas.width,canvas.height);
-  avgSpeedEl.textContent = "0";
-  rmsSpeedEl.textContent = "0";
-  pressureEl.textContent = "0";
-  avgFramesEl.textContent = "幀數: 0";
+  avgSpeedEl.textContent="0";
+  rmsSpeedEl.textContent="0";
+  pressureEl.textContent="0";
+  avgFramesEl.textContent="幀數: 0";
+  drawColorBar();
 };
 
 initParticles();
+drawColorBar();
 </script>
 </body>
 </html>
