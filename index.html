@@ -182,21 +182,10 @@ function drawHistogram(){
   });
   let maxCount = Math.max(...hist);
   for(let i=0;i<bins;i++){
-    let h = hist[i]/maxCount*histCanvas.height;
-    if(h<=histCanvas.height){
-      histCtx.fillStyle='gray';
-      histCtx.fillRect(i*(histCanvas.width/bins),histCanvas.height-h,histCanvas.width/bins-1,h);
-    } else {
-      histCtx.fillStyle='gray';
-      histCtx.fillRect(i*(histCanvas.width/bins),0,histCanvas.width/bins-1,histCanvas.height);
-      histCtx.fillStyle='red';
-      histCtx.fillRect(i*(histCanvas.width/bins),0,histCanvas.width/bins-1,h-histCanvas.height);
-    }
-    // 下方數字：溢出條數+1
-    histCtx.fillStyle='black';
-    histCtx.font='10px sans-serif';
-    let overflow = Math.floor(h/histCanvas.height);
-    histCtx.fillText(overflow+1,i*(histCanvas.width/bins)+2,histCanvas.height-2);
+    // 高度縮小 0.4 倍
+    let h = hist[i]/maxCount*histCanvas.height*0.4;
+    histCtx.fillStyle='gray';
+    histCtx.fillRect(i*(histCanvas.width/bins),histCanvas.height-h,histCanvas.width/bins-1,h);
   }
 }
 
@@ -232,8 +221,7 @@ document.getElementById("startBtn").onclick=()=>{
   if(!running){
     initialTemp=parseFloat(tempInput.value);
     numParticles=parseInt(numInput.value);
-    tempInput.disabled=true;
-    numInput.disabled=true;
+    tempInput.disabled=true; numInput.disabled=true;
     initParticles();
     drawColorBar();
     running=true;
@@ -243,15 +231,11 @@ document.getElementById("startBtn").onclick=()=>{
 
 document.getElementById("resetBtn").onclick=()=>{
   running=false;
-  tempInput.disabled=false;
-  numInput.disabled=false;
+  tempInput.disabled=false; numInput.disabled=false;
   initParticles();
   ctx.clearRect(0,0,canvas.width,canvas.height);
   histCtx.clearRect(0,0,histCanvas.width,histCanvas.height);
-  avgSpeedEl.textContent="0";
-  rmsSpeedEl.textContent="0";
-  pressureEl.textContent="0";
-  avgFramesEl.textContent="幀數: 0";
+  avgSpeedEl.textContent="0"; rmsSpeedEl.textContent="0"; pressureEl.textContent="0"; avgFramesEl.textContent="幀數: 0";
   drawColorBar();
 };
 
