@@ -153,6 +153,7 @@ function handleCollisions(){
 
 function drawHistogram(){
   histCtx.clearRect(0,0,histCanvas.width,histCanvas.height);
+  const legendHeight=15;  // 色條高度
   const bins=50;
   let speeds=particles.map(p=>Math.sqrt(p.vx*p.vx+p.vy*p.vy));
   let maxSpeed=8;
@@ -161,21 +162,22 @@ function drawHistogram(){
     let idx=Math.min(Math.floor(s/maxSpeed*bins), bins-1);
     hist[idx]++;
   });
-  for(let i=0;i<bins;i++){
-    let h=hist[i]/maxParticlesPerBin*histCanvas.height;
-    if(h>histCanvas.height) h=histCanvas.height;
-    histCtx.fillStyle='gray';
-    histCtx.fillRect(i*(histCanvas.width/bins),histCanvas.height-h,histCanvas.width/bins-1,h);
-  }
 
-  // 顏色圖
-  const legendHeight=15;
+  // 顏色圖條在上方
   for(let x=0;x<histCanvas.width;x++){
     let frac=x/histCanvas.width;
     let v=frac*maxSpeed;
-    let c = getColorByAbsoluteSpeed(v);
+    let c=getColorByAbsoluteSpeed(v);
     histCtx.fillStyle=c;
-    histCtx.fillRect(x,histCanvas.height-legendHeight,1,legendHeight);
+    histCtx.fillRect(x,0,1,legendHeight);
+  }
+
+  // 畫直方圖，留出上方 legendHeight
+  for(let i=0;i<bins;i++){
+    let h=hist[i]/maxParticlesPerBin*(histCanvas.height-legendHeight);
+    if(h>histCanvas.height-legendHeight) h=histCanvas.height-legendHeight;
+    histCtx.fillStyle='gray';
+    histCtx.fillRect(i*(histCanvas.width/bins), legendHeight+(histCanvas.height-legendHeight-h), histCanvas.width/bins-1, h);
   }
 }
 
