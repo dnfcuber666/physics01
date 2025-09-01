@@ -19,8 +19,8 @@ input, button { margin: 5px; }
   <span id="tempValue">4000</span>
   <label>粒子數量: <input type="range" id="numInput" min="50" max="500" value="200" step="1"></label>
   <span id="numValue">200</span>
-  <label>時間倍率: <input type="range" id="fpsInput" min="1" max="5" value="1" step="1"></label>
-  <span id="fpsValue">1x</span>
+  <label>速度倍率: <input type="range" id="speedInput" min="1" max="5" value="1" step="1"></label>
+  <span id="speedValue">1x</span>
   <button id="startBtn">開始</button>
   <button id="resetBtn">停止</button>
 </div>
@@ -54,8 +54,8 @@ const tempInput = document.getElementById("tempInput");
 const tempValue = document.getElementById("tempValue");
 const numInput = document.getElementById("numInput");
 const numValue = document.getElementById("numValue");
-const fpsInput = document.getElementById("fpsInput");
-const fpsValue = document.getElementById("fpsValue");
+const speedInput = document.getElementById("speedInput");
+const speedValue = document.getElementById("speedValue");
 
 const avgSpeedEl = document.getElementById("avgSpeed");
 const rmsSpeedEl = document.getElementById("rmsSpeed");
@@ -64,11 +64,11 @@ const avgFramesEl = document.getElementById("avgFrames");
 
 tempInput.addEventListener("input", () => tempValue.textContent = tempInput.value);
 numInput.addEventListener("input", () => numValue.textContent = numInput.value);
-fpsInput.addEventListener("input", () => fpsValue.textContent = fpsInput.value + "x");
+speedInput.addEventListener("input", () => speedValue.textContent = speedInput.value + "x");
 
 function initParticles() {
   particles = [];
-  let speed = Math.sqrt(initialTemp)/100; // **所有粒子初速相同**
+  let speed = Math.sqrt(initialTemp)/100; // 初始相同速度
   for (let i=0;i<numParticles;i++){
     let angle = Math.random()*2*Math.PI;
     particles.push({ x: Math.random()*(canvas.width-2*radius)+radius,
@@ -82,8 +82,8 @@ function initParticles() {
   rmsSpeedHistory = [];
 }
 
-// 顏色: 紅=快, 灰=中, 藍=慢, **用初始速度最大值對應**
-function getColorByAbsoluteSpeed(speed,maxSpeed){
+// 顏色絕對速度映射
+function getColorByAbsoluteSpeed(speed, maxSpeed){
   const t = Math.min(speed/maxSpeed,1);
   if(t<0.5){
     const ratio = t/0.5;
@@ -149,23 +149,17 @@ function handleCollisions(){
   }
 }
 
-let lastTime = 0;
-function update(timestamp){
+function update(){
   if(!running) return;
-  const fpsMultiplier = parseInt(fpsInput.value);
-  const interval = 1000/(30*fpsMultiplier); // 30FPS基準 * 倍率
-  if(timestamp - lastTime < interval){
-    requestAnimationFrame(update);
-    return;
-  }
-  lastTime = timestamp;
-
   ctx.clearRect(0,0,canvas.width,canvas.height);
   let frameImpulse=0;
+  const speedMultiplier=parseInt(speedInput.value);
   const maxSpeed=Math.sqrt(initialTemp)/100*1.5;
 
   for(let p of particles){
-    p.x+=p.vx; p.y+=p.vy;
+    p.x+=p.vx*speedMultiplier;
+    p.y+=p.vy*speedMultiplier;
+
     if(p.x-p.radius<0){ frameImpulse+=Math.abs(2*p.vx)*10000; p.vx*=-1; p.x=p.radius; }
     if(p.x+p.radius>canvas.width){ frameImpulse+=Math.abs(2*p.vx)*10000; p.vx*=-1; p.x=canvas.width-p.radius; }
     if(p.y-p.radius<0){ frameImpulse+=Math.abs(2*p.vy)*10000; p.vy*=-1; p.y=p.radius; }
@@ -196,17 +190,16 @@ document.getElementById("startBtn").onclick = () => {
   if(!running){
     initialTemp = parseFloat(tempInput.value);
     numParticles = parseInt(numInput.value);
-    tempInput.disabled=true; numInput.disabled=true; fpsInput.disabled=true;
+    tempInput.disabled=true; numInput.disabled=true; speedInput.disabled=true;
     initParticles();
     running=true;
-    lastTime=0;
-    requestAnimationFrame(update);
+    update();
   }
 };
 
 document.getElementById("resetBtn").onclick = () => {
   running=false;
-  tempInput.disabled=false; numInput.disabled=false; fpsInput.disabled=false;
+  tempInput.disabled=false; numInput.disabled=false; speedInput.disabled=false;
   initParticles();
   ctx.clearRect(0,0,canvas.width,canvas.height);
   avgSpeedEl.textContent="0";
