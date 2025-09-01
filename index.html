@@ -1,113 +1,76 @@
 <!DOCTYPE html>
-<html lang="zh">
-<head>
-  <meta charset="UTF-8" />
-  <title>2D 氣體分子運動模擬</title>
-  <style>
-    body { text-align: center; background: #f5f5f5; font-family: sans-serif; }
-    canvas { background: #fff; display: block; margin: 10px auto; border: 1px solid #ccc; }
-    .controls { margin: 10px; }
-    input, button { margin: 5px; }
-    .stats { margin: 10px; font-size: 18px; }
-  </style>
-</head>
-<body>
-  <h1>2D 氣體分子運動模擬</h1>
-  <div class="controls">
-    <label>初始溫度: <input type="range" id="tempInput" min="1000" max="100000" value="4000" step="100"></label>
-    <span id="tempValue">4000</span>
-    <button id="startBtn">開始</button>
-    <button id="resetBtn">重設</button>
-  </div>
-  <div class="stats">
-    平均速度: <span id="avgSpeed">0</span> | 溫度: <span id="temperature">0</span>
-  </div>
-  <canvas id="simCanvas" width="600" height="400"></canvas>
 
-  <script>
-    const canvas = document.getElementById("simCanvas");
-    const ctx = canvas.getContext("2d");
-    let particles = [];
-    let numParticles = 50;
-    let radius = 5;
-    let initialTemp = 4000;
-    let running = false;
 
-    const tempInput = document.getElementById("tempInput");
-    const tempValue = document.getElementById("tempValue");
-    const avgSpeedEl = document.getElementById("avgSpeed");
-    const temperatureEl = document.getElementById("temperature");
+function update() {
+ctx.clearRect(0, 0, canvas.width, canvas.height);
+let pressure = 0;
+for (let p of particles) {
+p.x += p.vx;
+p.y += p.vy;
 
-    // 更新顯示溫度值
-    tempInput.addEventListener("input", () => {
-      tempValue.textContent = tempInput.value;
-    });
 
-    function initParticles() {
-      particles = [];
-      let speedScale = Math.sqrt(initialTemp) / 100;
-      for (let i = 0; i < numParticles; i++) {
-        let angle = Math.random() * 2 * Math.PI;
-        let speed = speedScale * (0.5 + Math.random());
-        particles.push({
-          x: Math.random() * (canvas.width - 2 * radius) + radius,
-          y: Math.random() * (canvas.height - 2 * radius) + radius,
-          vx: speed * Math.cos(angle),
-          vy: speed * Math.sin(angle),
-          radius: radius
-        });
-      }
-    }
+// 左右牆碰撞
+if (p.x - p.radius < 0) {
+pressure += Math.abs(2 * p.vx);
+p.vx *= -1;
+}
+if (p.x + p.radius > canvas.width) {
+pressure += Math.abs(2 * p.vx);
+p.vx *= -1;
+}
 
-    function computeStats() {
-      let totalSpeed = 0;
-      let totalSpeedSq = 0;
-      for (let p of particles) {
-        let v = Math.sqrt(p.vx*p.vx + p.vy*p.vy);
-        totalSpeed += v;
-        totalSpeedSq += v*v;
-      }
-      let avgSpeed = totalSpeed / particles.length;
-      let temperature = totalSpeedSq / particles.length; // 簡單假設溫度 ∝ 速度平方
-      avgSpeedEl.textContent = avgSpeed.toFixed(2);
-      temperatureEl.textContent = temperature.toFixed(2);
-    }
 
-    function update() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      for (let p of particles) {
-        p.x += p.vx;
-        p.y += p.vy;
-        if (p.x - p.radius < 0 || p.x + p.radius > canvas.width) p.vx *= -1;
-        if (p.y - p.radius < 0 || p.y + p.radius > canvas.height) p.vy *= -1;
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.radius, 0, 2 * Math.PI);
-        ctx.fill();
-      }
-      computeStats();
-      if (running) requestAnimationFrame(update);
-    }
+// 上下牆碰撞
+if (p.y - p.radius < 0) {
+pressure += Math.abs(2 * p.vy);
+p.vy *= -1;
+}
+if (p.y + p.radius > canvas.height) {
+pressure += Math.abs(2 * p.vy);
+p.vy *= -1;
+}
 
-    document.getElementById("startBtn").onclick = () => {
-      if (!running) {
-        initialTemp = parseFloat(tempInput.value);
-        tempInput.disabled = true;
-        initParticles();
-        running = true;
-        update();
-      }
-    };
 
-    document.getElementById("resetBtn").onclick = () => {
-      running = false;
-      tempInput.disabled = false;
-      initParticles();
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      avgSpeedEl.textContent = "0";
-      temperatureEl.textContent = "0";
-    };
+ctx.beginPath();
+ctx.arc(p.x, p.y, p.radius, 0, 2*Math.PI);
+ctx.fill();
+}
 
-    initParticles();
-  </script>
+
+// 2D 容器總周長
+let containerLength = 2 * (canvas.width + canvas.height);
+let P = pressure / containerLength;
+pressureEl.textContent = P.toFixed(2);
+
+
+computeStats();
+if (running) requestAnimationFrame(update);
+}
+
+
+document.getElementById("startBtn").onclick = () => {
+if (!running) {
+initialTemp = parseFloat(tempInput.value);
+tempInput.disabled = true;
+initParticles();
+running = true;
+update();
+}
+};
+
+
+document.getElementById("resetBtn").onclick = () => {
+running = false;
+tempInput.disabled = false;
+initParticles();
+ctx.clearRect(0, 0, canvas.width, canvas.height);
+avgSpeedEl.textContent = "0";
+temperatureEl.textContent = "0";
+pressureEl.textContent = "0";
+};
+
+
+initParticles();
+</script>
 </body>
 </html>
