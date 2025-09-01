@@ -83,7 +83,7 @@ function initParticles() {
 
 // 顏色對應絕對速度，線性漸層
 function getColorByAbsoluteSpeed(speed){
-  if(speed<=0.2) return 'rgb(0,0,255)';       // 藍
+  if(speed<=0.2) return 'rgb(0,0,255)'; // 藍
   if(speed<=0.6){
     let t=(speed-0.2)/(0.6-0.2);
     let r=Math.floor(0*(1-t)+144*t);
@@ -105,15 +105,24 @@ function getColorByAbsoluteSpeed(speed){
     let b=Math.floor(211*(1-t)+0*t);
     return `rgb(${r},${g},${b})`; // 紅
   }
-  return 'rgb(255,0,0)';
+  if(speed<=8){
+    let t=(speed-3)/(8-3);
+    let r=Math.floor(255*(1-t)+255*t);
+    let g=Math.floor(0*(1-t)+165*t);
+    let b=Math.floor(0*(1-t)+0*t);
+    return `rgb(${r},${g},${b})`; // 橘黃色
+  }
+  return 'rgb(255,165,0)';
 }
 
+// 顏色條
 function drawColorBar(){
   const grad=colorCtx.createLinearGradient(0,0,colorBar.width,0);
   grad.addColorStop(0,'#0000ff'); // 藍
-  grad.addColorStop((0.6-0.2)/(3-0.2),'#90ee90'); // 淺綠
-  grad.addColorStop((1.3-0.2)/(3-0.2),'#d3d3d3'); // 灰
-  grad.addColorStop(1,'#ff0000'); // 紅
+  grad.addColorStop((0.6-0.2)/(8-0.2),'#90ee90'); // 淺綠
+  grad.addColorStop((1.3-0.2)/(8-0.2),'#d3d3d3'); // 灰
+  grad.addColorStop((3-0.2)/(8-0.2),'#ff0000'); // 紅
+  grad.addColorStop(1,'#ffa500'); // 橘黃
   colorCtx.fillStyle=grad;
   colorCtx.fillRect(0,0,colorBar.width,colorBar.height);
   colorCtx.fillStyle='black';
@@ -123,6 +132,7 @@ function drawColorBar(){
   colorCtx.fillText('快',colorBar.width-25,15);
 }
 
+// 統計
 function computeStats(){
   let totalSpeed=0,totalSpeedSq=0;
   for(let p of particles){
@@ -140,6 +150,7 @@ function computeStats(){
   rmsSpeedEl.textContent=(rmsSpeedHistory.reduce((a,b)=>a+b,0)/rmsSpeedHistory.length).toFixed(2);
 }
 
+// 分子間碰撞
 function handleCollisions(){
   for(let i=0;i<particles.length;i++){
     for(let j=i+1;j<particles.length;j++){
@@ -158,12 +169,12 @@ function handleCollisions(){
   }
 }
 
-// 畫速度分布直方圖
+// 畫速度直方圖
 function drawHistogram(){
   histCtx.clearRect(0,0,histCanvas.width,histCanvas.height);
   const bins=50;
   let speeds = particles.map(p=>Math.sqrt(p.vx*p.vx+p.vy*p.vy));
-  let maxSpeed = 3; // 對應紅色最大速度
+  let maxSpeed = 8;
   let hist = Array(bins).fill(0);
   speeds.forEach(s=>{
     let idx = Math.min(Math.floor(s/maxSpeed*bins), bins-1);
@@ -173,34 +184,26 @@ function drawHistogram(){
   for(let i=0;i<bins;i++){
     let h = hist[i]/maxCount*histCanvas.height;
     histCtx.fillStyle='gray';
-    histCtx.fillRect(i*(histCanvas.width/bins), histCanvas.height-h, histCanvas.width/bins-1, h);
+    histCtx.fillRect(i*(histCanvas.width/bins),histCanvas.height-h,histCanvas.width/bins-1,h);
   }
-  histCtx.fillStyle='black';
-  histCtx.font='12px sans-serif';
-  histCtx.fillText('速度分布', 5,12);
 }
 
 function update(){
-  if(!running) return;
   ctx.clearRect(0,0,canvas.width,canvas.height);
   let frameImpulse=0;
-
   for(let p of particles){
-    p.x+=p.vx;
-    p.y+=p.vy;
-
+    p.x+=p.vx; p.y+=p.vy;
     if(p.x-p.radius<0){ frameImpulse+=Math.abs(2*p.vx)*10000; p.vx*=-1; p.x=p.radius; }
     if(p.x+p.radius>canvas.width){ frameImpulse+=Math.abs(2*p.vx)*10000; p.vx*=-1; p.x=canvas.width-p.radius; }
     if(p.y-p.radius<0){ frameImpulse+=Math.abs(2*p.vy)*10000; p.vy*=-1; p.y=p.radius; }
     if(p.y+p.radius>canvas.height){ frameImpulse+=Math.abs(2*p.vy)*10000; p.vy*=-1; p.y=canvas.height-p.radius; }
-
-    let speed=Math.sqrt(p.vx*p.vx+p.vy*p.vy);
-    ctx.fillStyle=getColorByAbsoluteSpeed(speed);
-    ctx.beginPath(); ctx.arc(p.x,p.y,p.radius,0,2*Math.PI); ctx.fill();
+    let v = Math.sqrt(p.vx*p.vx+p.vy*p.vy);
+    ctx.beginPath();
+    ctx.arc(p.x,p.y,p.radius,0,2*Math.PI);
+    ctx.fillStyle=getColorByAbsoluteSpeed(v);
+    ctx.fill();
   }
-
   handleCollisions();
-
   impulseHistory.push(frameImpulse);
   if(impulseHistory.length>framesForAverage) impulseHistory.shift();
   let totalImpulse=impulseHistory.reduce((a,b)=>a+b,0);
@@ -208,7 +211,6 @@ function update(){
   let P=totalImpulse/containerLength/impulseHistory.length;
   pressureEl.textContent=P.toFixed(2);
   avgFramesEl.textContent=`幀數: ${impulseHistory.length}`;
-
   computeStats();
   drawHistogram();
   if(running) requestAnimationFrame(update);
