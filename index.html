@@ -182,10 +182,9 @@ function drawHistogram(){
   });
   let maxCount = Math.max(...hist);
   for(let i=0;i<bins;i++){
-    // 高度縮小 0.4 倍
-    let h = hist[i]/maxCount*histCanvas.height*0.4;
+    let h = (hist[i]/maxCount)*(histCanvas.height*0.4); // 高度縮小0.4倍
     histCtx.fillStyle='gray';
-    histCtx.fillRect(i*(histCanvas.width/bins),histCanvas.height-h,histCanvas.width/bins-1,h);
+    histCtx.fillRect(i*(histCanvas.width/bins), histCanvas.height - h, histCanvas.width/bins-1, h);
   }
 }
 
