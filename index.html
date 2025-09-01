@@ -17,14 +17,15 @@
     <label>初始溫度: <input type="range" id="tempInput" min="1000" max="100000" value="4000" step="100"></label>
     <span id="tempValue">4000</span>
     <label>粒子數量: <input type="range" id="numInput" min="100" max="2000" value="500" step="1"></label>
-    <span id="numValue">200</span>
+    <span id="numValue">500</span>
     <button id="startBtn">開始</button>
     <button id="resetBtn">重設</button>
   </div>
   <div class="stats">
     平均速度: <span id="avgSpeed">0</span> |
     溫度: <span id="temperature">0</span> |
-    壓力: <span id="pressure">0</span>
+    壓力: <span id="pressure">0</span> |
+    <span id="avgFrames">平均幀數: 0</span>
   </div>
   <canvas id="simCanvas" width="600" height="400"></canvas>
 
@@ -49,6 +50,7 @@
     const avgSpeedEl = document.getElementById("avgSpeed");
     const temperatureEl = document.getElementById("temperature");
     const pressureEl = document.getElementById("pressure");
+    const avgFramesEl = document.getElementById("avgFrames");
 
     tempInput.addEventListener("input", () => tempValue.textContent = tempInput.value);
     numInput.addEventListener("input", () => numValue.textContent = numInput.value);
@@ -86,34 +88,33 @@
 
     function update() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
+
       let frameImpulse = 0;
-    
+
       for (let p of particles) {
         p.x += p.vx;
         p.y += p.vy;
-    
+
         if (p.x - p.radius < 0) { frameImpulse += Math.abs(2*p.vx) * 10000; p.vx *= -1; }
         if (p.x + p.radius > canvas.width) { frameImpulse += Math.abs(2*p.vx) * 10000; p.vx *= -1; }
         if (p.y - p.radius < 0) { frameImpulse += Math.abs(2*p.vy) * 10000; p.vy *= -1; }
         if (p.y + p.radius > canvas.height) { frameImpulse += Math.abs(2*p.vy) * 10000; p.vy *= -1; }
-    
+
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.radius, 0, 2*Math.PI);
         ctx.fill();
       }
-    
+
       impulseHistory.push(frameImpulse);
       if (impulseHistory.length > framesForAverage) impulseHistory.shift();
-    
+
       let totalImpulse = impulseHistory.reduce((a,b) => a+b, 0);
       let containerLength = 2 * (canvas.width + canvas.height);
       let P = totalImpulse / containerLength / impulseHistory.length;
       pressureEl.textContent = P.toFixed(2);
-    
-      // 顯示目前使用的幀數平均
-      document.getElementById("avgFrames").textContent = `平均幀數: ${impulseHistory.length}`;
-    
+
+      avgFramesEl.textContent = `平均幀數: ${impulseHistory.length}`;
+
       computeStats();
       if (running) requestAnimationFrame(update);
     }
@@ -139,6 +140,7 @@
       avgSpeedEl.textContent = "0";
       temperatureEl.textContent = "0";
       pressureEl.textContent = "0";
+      avgFramesEl.textContent = "平均幀數: 0";
     };
 
     initParticles();
