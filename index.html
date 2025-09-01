@@ -10,6 +10,7 @@ canvas { background: #fff; display: block; margin: 10px auto; border: 1px solid 
 input, button { margin: 5px; }
 .stats { margin: 10px; font-size: 18px; }
 #colorBar { width: 600px; height: 20px; margin: 10px auto; border:1px solid #ccc; }
+#histCanvas { width: 600px; height: 150px; margin: 10px auto; border:1px solid #ccc; }
 </style>
 </head>
 <body>
@@ -30,12 +31,15 @@ input, button { margin: 5px; }
 </div>
 <canvas id="simCanvas" width="600" height="400"></canvas>
 <canvas id="colorBar"></canvas>
+<canvas id="histCanvas"></canvas>
 
 <script>
 const canvas = document.getElementById("simCanvas");
 const ctx = canvas.getContext("2d");
 const colorBar = document.getElementById("colorBar");
 const colorCtx = colorBar.getContext("2d");
+const histCanvas = document.getElementById("histCanvas");
+const histCtx = histCanvas.getContext("2d");
 
 let particles = [];
 let numParticles = 200;
@@ -77,29 +81,29 @@ function initParticles() {
   rmsSpeedHistory = [];
 }
 
-// 顏色對應絕對速度，線性漸層 0.2→藍 0.6→淺綠 1.3→灰 3→紅
+// 顏色對應絕對速度，線性漸層
 function getColorByAbsoluteSpeed(speed){
-  if(speed<=0.2) return 'rgb(0,0,255)';
+  if(speed<=0.2) return 'rgb(0,0,255)';       // 藍
   if(speed<=0.6){
-    let t = (speed-0.2)/(0.6-0.2);
-    let r = Math.floor(0*(1-t)+144*t);
-    let g = Math.floor(0*(1-t)+238*t);
-    let b = Math.floor(255*(1-t)+144*t);
-    return `rgb(${r},${g},${b})`;
+    let t=(speed-0.2)/(0.6-0.2);
+    let r=Math.floor(0*(1-t)+144*t);
+    let g=Math.floor(0*(1-t)+238*t);
+    let b=Math.floor(255*(1-t)+144*t);
+    return `rgb(${r},${g},${b})`; // 淺綠
   }
   if(speed<=1.3){
-    let t = (speed-0.6)/(1.3-0.6);
-    let r = Math.floor(144*(1-t)+211*t);
-    let g = Math.floor(238*(1-t)+211*t);
-    let b = Math.floor(144*(1-t)+211*t);
-    return `rgb(${r},${g},${b})`;
+    let t=(speed-0.6)/(1.3-0.6);
+    let r=Math.floor(144*(1-t)+211*t);
+    let g=Math.floor(238*(1-t)+211*t);
+    let b=Math.floor(144*(1-t)+211*t);
+    return `rgb(${r},${g},${b})`; // 灰
   }
   if(speed<=3){
-    let t = (speed-1.3)/(3-1.3);
-    let r = Math.floor(211*(1-t)+255*t);
-    let g = Math.floor(211*(1-t)+0*t);
-    let b = Math.floor(211*(1-t)+0*t);
-    return `rgb(${r},${g},${b})`;
+    let t=(speed-1.3)/(3-1.3);
+    let r=Math.floor(211*(1-t)+255*t);
+    let g=Math.floor(211*(1-t)+0*t);
+    let b=Math.floor(211*(1-t)+0*t);
+    return `rgb(${r},${g},${b})`; // 紅
   }
   return 'rgb(255,0,0)';
 }
@@ -107,8 +111,8 @@ function getColorByAbsoluteSpeed(speed){
 function drawColorBar(){
   const grad=colorCtx.createLinearGradient(0,0,colorBar.width,0);
   grad.addColorStop(0,'#0000ff'); // 藍
-  grad.addColorStop((0.6-0.2)/(3-0.2)*0.2,'#90ee90'); // 淺綠
-  grad.addColorStop((1.3-0.2)/(3-0.2)*0.5,'#d3d3d3'); // 灰
+  grad.addColorStop((0.6-0.2)/(3-0.2),'#90ee90'); // 淺綠
+  grad.addColorStop((1.3-0.2)/(3-0.2),'#d3d3d3'); // 灰
   grad.addColorStop(1,'#ff0000'); // 紅
   colorCtx.fillStyle=grad;
   colorCtx.fillRect(0,0,colorBar.width,colorBar.height);
@@ -122,7 +126,7 @@ function drawColorBar(){
 function computeStats(){
   let totalSpeed=0,totalSpeedSq=0;
   for(let p of particles){
-    let v = Math.sqrt(p.vx*p.vx + p.vy*p.vy);
+    let v=Math.sqrt(p.vx*p.vx+p.vy*p.vy);
     totalSpeed+=v;
     totalSpeedSq+=v*v;
   }
@@ -152,6 +156,28 @@ function handleCollisions(){
       }
     }
   }
+}
+
+// 畫速度分布直方圖
+function drawHistogram(){
+  histCtx.clearRect(0,0,histCanvas.width,histCanvas.height);
+  const bins=50;
+  let speeds = particles.map(p=>Math.sqrt(p.vx*p.vx+p.vy*p.vy));
+  let maxSpeed = 3; // 對應紅色最大速度
+  let hist = Array(bins).fill(0);
+  speeds.forEach(s=>{
+    let idx = Math.min(Math.floor(s/maxSpeed*bins), bins-1);
+    hist[idx]++;
+  });
+  let maxCount = Math.max(...hist);
+  for(let i=0;i<bins;i++){
+    let h = hist[i]/maxCount*histCanvas.height;
+    histCtx.fillStyle='gray';
+    histCtx.fillRect(i*(histCanvas.width/bins), histCanvas.height-h, histCanvas.width/bins-1, h);
+  }
+  histCtx.fillStyle='black';
+  histCtx.font='12px sans-serif';
+  histCtx.fillText('速度分布', 5,12);
 }
 
 function update(){
@@ -184,27 +210,30 @@ function update(){
   avgFramesEl.textContent=`幀數: ${impulseHistory.length}`;
 
   computeStats();
-  drawColorBar();
-
-  requestAnimationFrame(update);
+  drawHistogram();
+  if(running) requestAnimationFrame(update);
 }
 
-document.getElementById("startBtn").onclick = () => {
+document.getElementById("startBtn").onclick=()=>{
   if(!running){
-    initialTemp = parseFloat(tempInput.value);
-    numParticles = parseInt(numInput.value);
-    tempInput.disabled=true; numInput.disabled=true;
+    initialTemp=parseFloat(tempInput.value);
+    numParticles=parseInt(numInput.value);
+    tempInput.disabled=true;
+    numInput.disabled=true;
     initParticles();
+    drawColorBar();
     running=true;
     update();
   }
 };
 
-document.getElementById("resetBtn").onclick = () => {
+document.getElementById("resetBtn").onclick=()=>{
   running=false;
-  tempInput.disabled=false; numInput.disabled=false;
+  tempInput.disabled=false;
+  numInput.disabled=false;
   initParticles();
   ctx.clearRect(0,0,canvas.width,canvas.height);
+  histCtx.clearRect(0,0,histCanvas.width,histCanvas.height);
   avgSpeedEl.textContent="0";
   rmsSpeedEl.textContent="0";
   pressureEl.textContent="0";
