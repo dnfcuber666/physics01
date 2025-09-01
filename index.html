@@ -31,7 +31,7 @@
 </div>
 
 <canvas id="simCanvas" width="600" height="400"></canvas>
-<canvas id="histCanvas" width="600" height="180"></canvas>
+<canvas id="histCanvas" width="600" height="150"></canvas>
 
 <script>
 const canvas = document.getElementById("simCanvas");
@@ -67,7 +67,7 @@ numInput.addEventListener("input", () => numValue.textContent = numInput.value);
 
 function initParticles() {
   particles = [];
-  let speed = Math.sqrt(initialTemp)/100; // 初始速度相同
+  let speed = Math.sqrt(initialTemp)/100; // 所有粒子初始速度一樣
   for(let i=0;i<numParticles;i++){
     let angle = Math.random()*2*Math.PI;
     particles.push({
@@ -153,41 +153,6 @@ function drawHistogram(){
     histCtx.fillStyle='gray';
     histCtx.fillRect(i*(histCanvas.width/bins), histCanvas.height-h, histCanvas.width/bins-1, h);
   }
-
-  // 顏色圖
-  const legendHeight=15;
-  const colorStops=[
-    {v:0.2, color:'#0000ff'},
-    {v:0.6, color:'#90ee90'},
-    {v:1.3, color:'#aaaaaa'},
-    {v:3, color:'#ff0000'},
-    {v:8, color:'#ffa500'}
-  ];
-  const legendWidth = histCanvas.width;
-  for(let x=0;x<legendWidth;x++){
-    let frac = x/legendWidth;
-    let v = frac*8; // 對應速度
-    // 找顏色段
-    let c = colorStops[colorStops.length-1].color;
-    for(let j=0;j<colorStops.length-1;j++){
-      if(v>=colorStops[j].v && v<colorStops[j+1].v){
-        let f = (v-colorStops[j].v)/(colorStops[j+1].v-colorStops[j].v);
-        c = interpolateColor(colorStops[j].color, colorStops[j+1].color, f);
-        break;
-      }
-    }
-    histCtx.fillStyle=c;
-    histCtx.fillRect(x,histCanvas.height-legendHeight,1,legendHeight);
-  }
-}
-
-function interpolateColor(c1,c2,f){
-  let r1=parseInt(c1.substr(1,2),16), g1=parseInt(c1.substr(3,2),16), b1=parseInt(c1.substr(5,2),16);
-  let r2=parseInt(c2.substr(1,2),16), g2=parseInt(c2.substr(3,2),16), b2=parseInt(c2.substr(5,2),16);
-  let r=Math.round(r1*(1-f)+r2*f);
-  let g=Math.round(g1*(1-f)+g2*f);
-  let b=Math.round(b1*(1-f)+b2*f);
-  return `rgb(${r},${g},${b})`;
 }
 
 function update(){
