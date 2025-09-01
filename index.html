@@ -78,6 +78,7 @@ function initParticles() {
   rmsSpeedHistory = [];
 }
 
+// 計算滑動平均
 function computeStats() {
   let totalSpeed = 0;
   let totalSpeedSq = 0;
@@ -101,6 +102,7 @@ function computeStats() {
   rmsSpeedEl.textContent = rmsSpeedSmoothed.toFixed(2);
 }
 
+// 分子碰撞處理
 function handleCollisions() {
   for(let i=0;i<particles.length;i++){
     for(let j=i+1;j<particles.length;j++){
@@ -117,14 +119,39 @@ function handleCollisions() {
         p2.vx += p*p1.mass*nx;
         p2.vy += p*p1.mass*ny;
 
+        // 修正重疊位置
         let overlap = p1.radius + p2.radius - dist;
-        p1.x -= nx*overlap/2;
-        p1.y -= ny*overlap/2;
-        p2.x += nx*overlap/2;
-        p2.y += ny*overlap/2;
+        if(overlap > 0){
+          p1.x -= nx*overlap/2;
+          p1.y -= ny*overlap/2;
+          p2.x += nx*overlap/2;
+          p2.y += ny*overlap/2;
+        }
       }
     }
   }
+}
+
+// 平滑漸層顏色
+function getGradientColor(speed, minSpeed, maxSpeed) {
+  const t = (speed - minSpeed) / (maxSpeed - minSpeed + 0.0001);
+  const colors = [
+    [173,216,230], // 淺藍
+    [144,238,144], // 淺綠
+    [255,255,0],   // 黃
+    [255,165,0],   // 橙
+    [255,0,0]      // 紅
+  ];
+  const n = colors.length - 1;
+  let idx = Math.floor(t * n);
+  if(idx >= n) idx = n-1;
+  const t2 = (t - idx/n) * n;
+  const c1 = colors[idx];
+  const c2 = colors[idx+1];
+  const r = Math.floor(c1[0]*(1-t2) + c2[0]*t2);
+  const g = Math.floor(c1[1]*(1-t2) + c2[1]*t2);
+  const b = Math.floor(c1[2]*(1-t2) + c2[2]*t2);
+  return `rgb(${r},${g},${b})`;
 }
 
 function update() {
@@ -132,7 +159,7 @@ function update() {
 
   let frameImpulse = 0;
 
-  // 計算速度最大最小，用於顏色漸層
+  // 計算速度最大最小
   let speeds = particles.map(p => Math.sqrt(p.vx*p.vx + p.vy*p.vy));
   let maxSpeed = Math.max(...speeds);
   let minSpeed = Math.min(...speeds);
@@ -141,17 +168,15 @@ function update() {
     p.x += p.vx;
     p.y += p.vy;
 
+    // 邊界反彈
     if (p.x - p.radius < 0) { frameImpulse += Math.abs(2*p.vx) * 10000; p.vx *= -1; p.x = p.radius; }
     if (p.x + p.radius > canvas.width) { frameImpulse += Math.abs(2*p.vx) * 10000; p.vx *= -1; p.x = canvas.width - p.radius; }
     if (p.y - p.radius < 0) { frameImpulse += Math.abs(2*p.vy) * 10000; p.vy *= -1; p.y = p.radius; }
     if (p.y + p.radius > canvas.height) { frameImpulse += Math.abs(2*p.vy) * 10000; p.vy *= -1; p.y = canvas.height - p.radius; }
 
-    // 顏色漸層：藍色慢、紅色快
+    // 顏色漸層
     let speed = Math.sqrt(p.vx*p.vx + p.vy*p.vy);
-    let t = (speed - minSpeed)/(maxSpeed - minSpeed + 0.0001); // 防除零
-    let r = Math.floor(255*t);
-    let b = Math.floor(255*(1-t));
-    ctx.fillStyle = `rgb(${r},0,${b})`;
+    ctx.fillStyle = getGradientColor(speed, minSpeed, maxSpeed);
 
     ctx.beginPath();
     ctx.arc(p.x, p.y, p.radius, 0, 2*Math.PI);
