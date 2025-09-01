@@ -113,7 +113,7 @@
       let P = totalImpulse / containerLength / impulseHistory.length;
       pressureEl.textContent = P.toFixed(2);
 
-      avgFramesEl.textContent = `平均幀數: ${impulseHistory.length}`;
+      avgFramesEl.textContent = `幀數: ${impulseHistory.length}`;
 
       computeStats();
       if (running) requestAnimationFrame(update);
@@ -140,7 +140,7 @@
       avgSpeedEl.textContent = "0";
       temperatureEl.textContent = "0";
       pressureEl.textContent = "0";
-      avgFramesEl.textContent = "平均幀數: 0";
+      avgFramesEl.textContent = "幀數: 0";
     };
 
     initParticles();
