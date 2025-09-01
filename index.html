@@ -86,33 +86,34 @@
 
     function update() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-
+    
       let frameImpulse = 0;
-
+    
       for (let p of particles) {
         p.x += p.vx;
         p.y += p.vy;
-
+    
         if (p.x - p.radius < 0) { frameImpulse += Math.abs(2*p.vx) * 10000; p.vx *= -1; }
         if (p.x + p.radius > canvas.width) { frameImpulse += Math.abs(2*p.vx) * 10000; p.vx *= -1; }
         if (p.y - p.radius < 0) { frameImpulse += Math.abs(2*p.vy) * 10000; p.vy *= -1; }
         if (p.y + p.radius > canvas.height) { frameImpulse += Math.abs(2*p.vy) * 10000; p.vy *= -1; }
-
+    
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.radius, 0, 2*Math.PI);
         ctx.fill();
       }
-
-      // 滑動窗口累計最近 100 幀
+    
       impulseHistory.push(frameImpulse);
       if (impulseHistory.length > framesForAverage) impulseHistory.shift();
-
-      // 計算最近 100 幀的平均壓力
+    
       let totalImpulse = impulseHistory.reduce((a,b) => a+b, 0);
       let containerLength = 2 * (canvas.width + canvas.height);
       let P = totalImpulse / containerLength / impulseHistory.length;
       pressureEl.textContent = P.toFixed(2);
-
+    
+      // 顯示目前使用的幀數平均
+      document.getElementById("avgFrames").textContent = `平均幀數: ${impulseHistory.length}`;
+    
       computeStats();
       if (running) requestAnimationFrame(update);
     }
