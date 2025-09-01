@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>2D 氣體分子運動模擬</title>
+  <style>
+    :root {
+      --bg: #0b1020;
+      --panel: #121831;
+      --muted: #8aa0b8;
+      --text: #e8f0ff;
+      --accent: #66e0ff;
+      --good: #5ee38a;
+      --warn: #ffd166;
+      --danger: #ff6b6b;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Noto Sans TC", Helvetica, Arial;
+      background: radial-gradient(1200px 800px at 20% 0%, #142048 0%, var(--bg) 60%);
+      color: var(--text);
+    }
+    header { padding: 16px 20px; border-bottom: 1px solid #223; background: #0c1330aa; backdrop-filter: blur(4px); position: sticky; top: 0; z-index: 10; }
+    header h1 { margin: 0; font-size: 20px; letter-spacing: .5px; }
+    .container { display: grid; grid-template-columns: 1fr 340px; gap: 16px; padding: 16px; }
+    .card { background: var(--panel); border: 1px solid #22324a; border-radius: 16px; box-shadow: 0 8px 24px rgba(0,0,0,.3); overflow: clip; }
+    .card h2 { font-size: 14px; font-weight: 700; color: var(--muted); margin: 0; padding: 10px 12px; border-bottom: 1px solid #22324a; letter-spacing: .4px; }
+
+    #simWrap { position: relative; aspect-ratio: 4/3; width: 100%; }
+    #simCanvas { width: 100%; height: 100%; display: block; background: #0a0f22; }
+    #overlay { position: absolute; inset: 0; pointer-events: none; font-size: 12px; color: #cfe3ff; }
+    .overlayBox { position: absolute; left: 10px; top: 10px; background: #0b1228cc; padding: 8px 10px; border:1px solid #1f2a46; border-radius: 10px; }
+    .mini { opacity: .9; }
+
+    .panel { padding: 12px; display: grid; gap: 12px; }
+    .row { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 10px; }
+    .row label { font-size: 12px; color: var(--muted); }
+    .row .val { font-variant-numeric: tabular-nums; min-width: 60px; text-align: right; color: #cfe3ff; }
+
+    .controls { display:flex; gap: 8px; flex-wrap: wrap; }
+    button { appearance: none; border: 1px solid #2a3558; background: #0f1736; color: var(--text); padding: 8px 12px; border-radius: 12px; cursor: pointer; font-weight: 600; letter-spacing: .2px; }
+    button:hover { border-color: #3b4b7d; transform: translateY(-1px); }
+    button.primary { background: linear-gradient(180deg, #18306a, #0f1d49); border-color: #3753a5; box-shadow: inset 0 1px 0 #5b78d4; }
+    button.good { border-color: #2a5a3a; background: #0f2a1a; }
+    button.warn { border-color: #5a4a2a; background: #2a1f0f; }
+
+    .charts { display: grid; gap: 16px; grid-template-columns: 1fr; padding: 12px; }
+    #histCanvas, #energyCanvas { width: 100%; height: 160px; display: block; background: #091025; border-top: 1px solid #1a2240; }
+    .foot { padding: 10px 12px; font-size: 11px; color: #99abc8; border-top: 1px solid #22324a;}
+    a { color: var(--accent); text-decoration: none; }
+    .inline { display: inline-flex; align-items: baseline; gap: 6px; }
+    .tag { font-size: 10px; padding: 2px 6px; border-radius: 999px; border:1px solid #2a3558; background: #0f1736; color:#b9c9ff; }
+
+    @media (max-width: 980px) {
+      .container { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>2D 氣體分子運動模擬器 · Ideal Gas in a Box</h1>
+  </header>
+
+  <div class="container">
+    <div class="card">
+      <h2>模擬區</h2>
+      <div id="simWrap">
+        <canvas id="simCanvas"></canvas>
+        <div id="overlay">
+          <div class="overlayBox">
+            <div class="inline"><span class="tag">狀態</span> <span id="statusTxt">暫停</span></div>
+            <div>粒子數：<span id="nTxt">-</span></div>
+            <div>平均速率 ⟨|v|⟩：<span id="avgVTxt">-</span></div>
+            <div>平均動能 ⟨K⟩：<span id="avgKTxt">-</span></div>
+            <div>「溫度」∝ ⟨v²⟩：<span id="tempTxt">-</span></div>
+            <div>牆壓（2D, 任意單位）：<span id="pTxt">-</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>參數與控制</h2>
+      <div class="panel">
+        <div class="row"><label>粒子數 N</label><div class="val" id="nVal"></div></div>
+        <input id="nSlider" type="range" min="10" max="300" value="120" />
+
+        <div class="row"><label>粒子半徑 r</label><div class="val" id="rVal"></div></div>
+        <input id="rSlider" type="range" min="2" max="8" value="4" />
+
+        <div class="row"><label>質量 m（與 r² 成正比）</label><div class="val" id="mVal">m ∝ r²</div></div>
+
+        <div class="row"><label>速度倍率（溫度）</label><div class="val" id="tVal"></div></div>
+        <input id="tSlider" type="range" min="0.25" max="3" step="0.05" value="1" />
+
+        <div class="row"><label>時間步長 Δt</label><div class="val" id="dtVal"></div></div>
+        <input id="dtSlider" type="range" min="0.2" max="2.0" step="0.1" value="1.0" />
+
+        <div class="controls">
+          <button class="primary" id="toggleBtn">▶ 開始</button>
+          <button class="good" id="randomBtn">隨機化速度</button>
+          <button id="resetBtn">重設</button>
+          <button class="warn" id="halfBtn">隔板（開/關）</button>
+        </div>
+      </div>
+
+      <div class="charts">
+        <canvas id="histCanvas"></canvas>
+        <canvas id="energyCanvas"></canvas>
+      </div>
+      <div class="foot">說明：牆壓以單位時間內粒子對牆的動量改變總和，除以邊界長度近似（2D 壓力，任意單位）。速度分佈直方圖與平均動能會隨「溫度」倍率改變。</div>
+    </div>
+  </div>
+
+  <script>
+    // ====== 基本設定 ======
+    const simCanvas = document.getElementById('simCanvas');
+    const histCanvas = document.getElementById('histCanvas');
+    const energyCanvas = document.getElementById('energyCanvas');
+    const dpr = Math.max(1, window.devicePixelRatio || 1);
+
+    function fitCanvas(canvas, w, h) {
+      canvas.width = Math.round(w * dpr);
+      canvas.height = Math.round(h * dpr);
+      canvas.style.width = w + 'px';
+      canvas.style.height = h + 'px';
+      return canvas.getContext('2d');
+    }
+
+    function resizeAll() {
+      const wrap = document.getElementById('simWrap');
+      const rect = wrap.getBoundingClientRect();
+      simW = Math.floor(rect.width);
+      simH = Math.floor(rect.height);
+      simCtx = fitCanvas(simCanvas, simW, simH);
+      histCtx = fitCanvas(histCanvas, rect.width - 24, 160);
+      energyCtx = fitCanvas(energyCanvas, rect.width - 24, 160);
+    }
+
+    let simW = 800, simH = 600; // 依比例自調
+    let simCtx, histCtx, energyCtx;
+    resizeAll();
+    window.addEventListener('resize', resizeAll);
+
+    // ====== UI 元件 ======
+    const nSlider = document.getElementById('nSlider');
+    const rSlider = document.getElementById('rSlider');
+    const tSlider = document.getElementById('tSlider');
+    const dtSlider = document.getElementById('dtSlider');
+
+    const nVal = document.getElementById('nVal');
+    const rVal = document.getElementById('rVal');
+    const tVal = document.getElementById('tVal');
+    const dtVal = document.getElementById('dtVal');
+
+    const statusTxt = document.getElementById('statusTxt');
+    const nTxt = document.getElementById('nTxt');
+    const avgVTxt = document.getElementById('avgVTxt');
+    const avgKTxt = document.getElementById('avgKTxt');
+    const tempTxt = document.getElementById('tempTxt');
+    const pTxt = document.getElementById('pTxt');
+
+    const toggleBtn = document.getElementById('toggleBtn');
+    const randomBtn = document.getElementById('randomBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const halfBtn = document.getElementById('halfBtn');
+
+    // ====== 模擬狀態 ======
+    let particles = [];
+    let running = false;
+    let barrier = false; // 中央隔板
+
+    const settings = {
+      N: parseInt(nSlider.value, 10),
+      r: parseFloat(rSlider.value),
+      tempMul: parseFloat(tSlider.value),
+      dt: parseFloat(dtSlider.value),
+    };
+
+    function updateLabels() {
+      nVal.textContent = settings.N;
+      rVal.textContent = settings.r.toFixed(1) + ' px';
+      tVal.textContent = settings.tempMul.toFixed(2) + ' ×';
+      dtVal.textContent = settings.dt.toFixed(2) + ' ×';
+      nTxt.textContent = particles.length;
+    }
+
+    nSlider.addEventListener('input', () => { settings.N = parseInt(nSlider.value,10); rebuildParticles(); });
+    rSlider.addEventListener('input', () => { settings.r = parseFloat(rSlider.value); rebuildParticles(); });
+    tSlider.addEventListener('input', () => { settings.tempMul = parseFloat(tSlider.value); });
+    dtSlider.addEventListener('input', () => { settings.dt = parseFloat(dtSlider.value); });
+
+    toggleBtn.addEventListener('click', () => { running = !running; toggleBtn.textContent = running ? '⏸ 暫停' : '▶ 開始'; statusTxt.textContent = running ? '運行中' : '暫停'; });
+    randomBtn.addEventListener('click', () => { randomizeVelocities(); });
+    resetBtn.addEventListener('click', () => { rebuildParticles(true); pressureTracker.reset(); energyHistory.length = 0; });
+    halfBtn.addEventListener('click', () => { barrier = !barrier; });
+
+    // ====== 物理物件 ======
+    function randn() {
+      // 簡單 Box–Muller 產生常態分佈，用於初速分佈
+      let u = 0, v = 0;
+      while (u === 0) u = Math.random();
+      while (v === 0) v = Math.random();
+      return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+    }
+
+    function makeParticle() {
+      const r = settings.r;
+      const m = r * r; // m ∝ r²
+      const x = (Math.random() * 0.9 + 0.05) * simW;
+      const y = (Math.random() * 0.9 + 0.05) * simH;
+      const vScale = 45; // 基本速度尺度
+      const vx = randn() * vScale;
+      const vy = randn() * vScale;
+      return { x, y, vx, vy, r, m, color: particleColor() };
+    }
+
+    function particleColor() {
+      // 依速度大小調色（繪製時更新更準確，但這裡提供初色）
+      return '#7fd1ff';
+    }
+
+    function rebuildParticles(preserve=false) {
+      const N = settings.N | 0;
+      const r = settings.r;
+      const newList = [];
+      let tries = 0;
+      while (newList.length < N && tries < N * 200) {
+        const p = makeParticle();
+        let ok = true;
+        for (let q of newList) {
+          const dx = p.x - q.x, dy = p.y - q.y;
+          const rr = (p.r + q.r);
+          if (dx*dx + dy*dy < rr*rr*1.05) { ok = false; break; }
+        }
+        if (ok) newList.push(p);
+        tries++;
+      }
+      particles = newList;
+      updateLabels();
+    }
+
+    function randomizeVelocities() {
+      const vScale = 45 * settings.tempMul;
+      for (let p of particles) {
+        p.vx = randn() * vScale;
+        p.vy = randn() * vScale;
+      }
+    }
+
+    rebuildParticles();
+    randomizeVelocities();
+
+    // ====== 碰撞處理 ======
+    function resolveWall(p, dt) {
+      let impulse = 0; // 累計在本步內對牆的動量變化
+      // 左右牆
+      if (p.x - p.r < 0) {
+        const vn = p.vx;
+        p.x = p.r;
+        p.vx = Math.abs(p.vx);
+        impulse += Math.abs(2 * p.m * vn);
+      } else if (p.x + p.r > simW) {
+        const vn = p.vx;
+        p.x = simW - p.r;
+        p.vx = -Math.abs(p.vx);
+        impulse += Math.abs(2 * p.m * vn);
+      }
+      // 上下牆
+      if (p.y - p.r < 0) {
+        const vn = p.vy;
+        p.y = p.r;
+        p.vy = Math.abs(p.vy);
+        impulse += Math.abs(2 * p.m * vn);
+      } else if (p.y + p.r > simH) {
+        const vn = p.vy;
+        p.y = simH - p.r;
+        p.vy = -Math.abs(p.vy);
+        impulse += Math.abs(2 * p.m * vn);
+      }
+
+      // 中央隔板：垂直線在中間，留一個小孔
+      if (barrier) {
+        const xB = simW * 0.5;
+        const holeHalf = 18; // 孔半徑
+        const isInGap = Math.abs(p.y - simH*0.5) <= holeHalf + p.r;
+        if (p.x - p.r < xB && p.vx > 0 && !(isInGap && p.x < xB)) {
+          const toBar = xB - (p.x - p.r);
+          if (toBar < 0) {
+            const vn = p.vx;
+            p.x = xB - p.r;
+            p.vx = -Math.abs(p.vx);
+            impulse += Math.abs(2 * p.m * vn);
+          }
+        }
+        if (p.x + p.r > xB && p.vx < 0 && !(isInGap && p.x > xB)) {
+          const toBar = (p.x + p.r) - xB;
+          if (toBar > 0) {
+            const vn = p.vx;
+            p.x = xB + p.r;
+            p.vx = Math.abs(p.vx);
+            impulse += Math.abs(2 * p.m * vn);
+          }
+        }
+      }
+
+      return impulse;
+    }
+
+    function resolvePair(p, q) {
+      // 2D 彈性碰撞（一般質量）
+      const dx = q.x - p.x;
+      const dy = q.y - p.y;
+      const rSum = p.r + q.r;
+      const dist2 = dx*dx + dy*dy;
+      if (dist2 === 0 || dist2 > rSum*rSum) return 0;
+
+      const dist = Math.sqrt(dist2);
+      const nx = dx / dist, ny = dy / dist; // 法向量
+
+      // 位置校正（避免穿透）：各退一步
+      const overlap = rSum - dist;
+      const totalMass = p.m + q.m;
+      const corrP = overlap * (q.m / totalMass);
+      const corrQ = overlap * (p.m / totalMass);
+      p.x -= nx * corrP; p.y -= ny * corrP;
+      q.x += nx * corrQ; q.y += ny * corrQ;
+
+      // 相對速度在法向投影
+      const dvx = q.vx - p.vx;
+      const dvy = q.vy - p.vy;
+      const vRel = dvx*nx + dvy*ny;
+      if (vRel <= 0) {
+        const e = 1.0; // 完全彈性
+        const j = -(1 + e) * vRel / (1/p.m + 1/q.m);
+        const jx = j * nx, jy = j * ny;
+        p.vx -= jx / p.m; p.vy -= jy / p.m;
+        q.vx += jx / q.m; q.vy += jy / q.m;
+      }
+      return 0; // 牆壓計算與顆粒-顆粒無關
+    }
+
+    // ====== 壓力統計 ======
+    const pressureTracker = {
+      accImpulse: 0,
+      accTime: 0,
+      reset(){ this.accImpulse = 0; this.accTime = 0; },
+      add(impulse){ this.accImpulse += impulse; },
+      step(dt){ this.accTime += dt; if (this.accTime >= 0.25) { // 每 0.25s 更新一次顯示
+          const perimeter = 2*(simW + simH) + (barrier? simH : 0);
+          const P = this.accImpulse / Math.max(1, perimeter) / this.accTime; // 2D：力/長度
+          pTxt.textContent = P.toFixed(3);
+          this.reset();
+        }
+      }
+    };
+
+    // ====== 觀測量 ======
+    function computeStats() {
+      let sumV = 0, sumV2 = 0, sumK = 0;
+      for (let p of particles) {
+        const v2 = p.vx*p.vx + p.vy*p.vy;
+        sumV += Math.sqrt(v2);
+        sumV2 += v2;
+        sumK += 0.5 * p.m * v2;
+      }
+      const N = Math.max(1, particles.length);
+      avgVTxt.textContent = (sumV / N).toFixed(2);
+      avgKTxt.textContent = (sumK / N).toFixed(2);
+      tempTxt.textContent = (sumV2 / N).toFixed(2);
+    }
+
+    // 能量歷史（繪圖）
+    const energyHistory = [];
+    function pushEnergySample(dtReal) {
+      let totalK = 0;
+      for (let p of particles) {
+        totalK += 0.5 * p.m * (p.vx*p.vx + p.vy*p.vy);
+      }
+      energyHistory.push(totalK);
+      if (energyHistory.length > 200) energyHistory.shift();
+      // 繪製能量曲線
+      const ctx = energyCtx;
+      ctx.save();
+      ctx.clearRect(0,0,energyCanvas.width, energyCanvas.height);
+      ctx.translate(0.5,0.5);
+      const W = energyCanvas.width, H = energyCanvas.height;
+      // 軸
+      ctx.globalAlpha = 0.6; ctx.strokeStyle = '#2a3a6a'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(30, H-20); ctx.lineTo(W-10, H-20); ctx.moveTo(30,10); ctx.lineTo(30, H-20); ctx.stroke();
+      // 正規化
+      const maxE = Math.max(1, ...energyHistory);
+      const minE = Math.min(...energyHistory, maxE*0.8);
+      const span = Math.max(1, maxE - minE);
+      // 線
+      ctx.strokeStyle = '#7fe3a0'; ctx.lineWidth = 2; ctx.globalAlpha = 0.95;
+      ctx.beginPath();
+      const n = energyHistory.length;
+      for (let i=0;i<n;i++){
+        const x = 30 + (W-40) * (i/(n-1));
+        const y = (H-20) - (H-40) * ((energyHistory[i]-minE)/span);
+        if (i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+      }
+      ctx.stroke();
+      ctx.fillStyle = '#a9bbff'; ctx.globalAlpha = 0.9; ctx.font = `${12*dpr}px ui-sans-serif`;
+      ctx.fillText('總動能（任意單位）', 36, 18);
+      ctx.restore();
+    }
+
+    // 速度直方圖
+    function drawHistogram() {
+      const speeds = particles.map(p => Math.hypot(p.vx, p.vy));
+      const bins = 24;
+      const maxV = Math.max(10, ...speeds);
+      const counts = new Array(bins).fill(0);
+      for (let v of speeds) {
+        const b = Math.min(bins - 1, Math.floor(v / maxV * bins));
+        counts[b]++;
+      }
+      const ctx = histCtx; const W = histCanvas.width, H = histCanvas.height;
+      ctx.save(); ctx.clearRect(0,0,W,H); ctx.translate(0.5,0.5);
+      // 軸
+      ctx.globalAlpha = 0.6; ctx.strokeStyle = '#2a3a6a';
+      ctx.beginPath(); ctx.moveTo(30, H-20); ctx.lineTo(W-10, H-20); ctx.moveTo(30,10); ctx.lineTo(30,H-20); ctx.stroke();
+      const maxC = Math.max(1, ...counts);
+      const barW = (W-50)/bins;
+      ctx.globalAlpha = 0.95; ctx.fillStyle = '#66e0ff';
+      for (let i=0;i<bins;i++){
+        const h = (H-40) * (counts[i]/maxC);
+        const x = 30 + i*barW + 2;
+        const y = (H-20) - h;
+        ctx.fillRect(x, y, barW-4, h);
+      }
+      ctx.fillStyle = '#a9bbff'; ctx.globalAlpha = 0.9; ctx.font = `${12*dpr}px ui-sans-serif`;
+      ctx.fillText('速度分佈（直方圖）', 36, 18);
+      ctx.restore();
+    }
+
+    // ====== 主迴圈 ======
+    let lastT = performance.now();
+    function step(ts) {
+      const dtReal = Math.min(0.05, (ts - lastT)/1000);
+      lastT = ts;
+
+      // 清畫布
+      simCtx.clearRect(0,0,simCanvas.width, simCanvas.height);
+
+      // 背景格線與隔板
+      drawBackground();
+
+      if (running) {
+        const subSteps = Math.max(1, Math.floor(1 * settings.dt));
+        const subDt = (dtReal * settings.dt) / subSteps;
+
+        for (let s=0; s<subSteps; s++) {
+          // 移動
+          for (let p of particles) {
+            p.x += p.vx * subDt;
+            p.y += p.vy * subDt;
+          }
+          // 牆碰撞與壓力
+          let impulseStep = 0;
+          for (let p of particles) impulseStep += resolveWall(p, subDt);
+          pressureTracker.add(impulseStep);
+          // 顆粒-顆粒碰撞（O(N^2)，N≤300 可接受）
+          for (let i=0;i<particles.length;i++){
+            for (let j=i+1;j<particles.length;j++){
+              resolvePair(particles[i], particles[j]);
+            }
+          }
+        }
+
+        pressureTracker.step(dtReal);
+        computeStats();
+        pushEnergySample(dtReal);
+      }
+
+      // 繪製粒子
+      drawParticles();
+
+      // UI 更新
+      updateLabels();
+      drawHistogram();
+
+      requestAnimationFrame(step);
+    }
+
+    requestAnimationFrame(step);
+
+    // ====== 繪圖輔助 ======
+    function drawBackground(){
+      const ctx = simCtx; const W = simCanvas.width, H = simCanvas.height;
+      ctx.save();
+      // 邊界
+      ctx.strokeStyle = '#2a3a6a'; ctx.lineWidth = 2*dpr; ctx.strokeRect(0.5,0.5,W-1,H-1);
+      // 隔板
+      if (barrier){
+        const xB = (simW*0.5)*dpr;
+        ctx.beginPath();
+        ctx.moveTo(xB, 0.5);
+        ctx.lineTo(xB, (H-1));
+        ctx.setLineDash([6*dpr, 6*dpr]);
+        ctx.strokeStyle = '#445b9e'; ctx.lineWidth = 1*dpr; ctx.stroke();
+        // 小孔
+        ctx.setLineDash([]);
+        ctx.beginPath();
+        ctx.strokeStyle = '#7fa6ff';
+        ctx.lineWidth = 3*dpr;
+        ctx.moveTo(xB, H*0.5 - 18*dpr);
+        ctx.lineTo(xB, H*0.5 + 18*dpr);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    function drawParticles(){
+      const ctx = simCtx; const speedForColor = 140;
+      ctx.save();
+      ctx.scale(dpr, dpr);
+      for (let p of particles){
+        const v = Math.hypot(p.vx, p.vy);
+        // 色彩依速度內插（冷→熱）
+        const t = Math.min(1, v / speedForColor);
+        const rgb = lerpColor([120, 200, 255], [255, 90, 90], t);
+        ctx.fillStyle = `rgb(${rgb[0]|0},${rgb[1]|0},${rgb[2]|0})`;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    function lerpColor(a, b, t){
+      return [ a[0] + (b[0]-a[0])*t, a[1] + (b[1]-a[1])*t, a[2] + (b[2]-a[2])*t ];
+    }
+
+    // 初始狀態文字
+    updateLabels();
+  </script>
+</body>
+</html>
