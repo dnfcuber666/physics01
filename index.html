@@ -59,9 +59,9 @@ numInput.addEventListener("input", () => numValue.textContent = numInput.value);
 
 function initParticles() {
   particles = [];
-  let speedScale = Math.sqrt(initialTemp) / 100; // 固定速度大小
+  let speedScale = Math.sqrt(initialTemp) / 100; // 固定初始速度大小
   for (let i = 0; i < numParticles; i++) {
-    let angle = Math.random() * 2 * Math.PI; // 隨機方向
+    let angle = Math.random() * 2 * Math.PI;
     let vx = speedScale * Math.cos(angle);
     let vy = speedScale * Math.sin(angle);
     particles.push({
@@ -119,7 +119,6 @@ function handleCollisions() {
         p2.vx += p*p1.mass*nx;
         p2.vy += p*p1.mass*ny;
 
-        // 修正重疊位置
         let overlap = p1.radius + p2.radius - dist;
         if(overlap > 0){
           p1.x -= nx*overlap/2;
@@ -132,37 +131,31 @@ function handleCollisions() {
   }
 }
 
-// 平滑漸層顏色
-function getGradientColor(speed, minSpeed, maxSpeed) {
-  const t = (speed - minSpeed) / (maxSpeed - minSpeed + 0.0001);
-  const colors = [
-    [173,216,230], // 淺藍
-    [144,238,144], // 淺綠
-    [255,255,0],   // 黃
-    [255,165,0],   // 橙
-    [255,0,0]      // 紅
-  ];
-  const n = colors.length - 1;
-  let idx = Math.floor(t * n);
-  if(idx >= n) idx = n-1;
-  const t2 = (t - idx/n) * n;
-  const c1 = colors[idx];
-  const c2 = colors[idx+1];
-  const r = Math.floor(c1[0]*(1-t2) + c2[0]*t2);
-  const g = Math.floor(c1[1]*(1-t2) + c2[1]*t2);
-  const b = Math.floor(c1[2]*(1-t2) + c2[2]*t2);
-  return `rgb(${r},${g},${b})`;
+// 三色平滑漸層: 紅 → 淺灰 → 淺藍，speed 對應絕對速度
+function getColorByAbsoluteSpeed(speed, referenceSpeed) {
+  const t = Math.min(speed / referenceSpeed, 1);
+  if (t < 0.5) {
+    // 紅 -> 淺灰
+    const ratio = t / 0.5;
+    const r = Math.floor(255*(1-ratio) + 211*ratio);
+    const g = Math.floor(0*(1-ratio) + 211*ratio);
+    const b = Math.floor(0*(1-ratio) + 211*ratio);
+    return `rgb(${r},${g},${b})`;
+  } else {
+    // 淺灰 -> 淺藍
+    const ratio = (t-0.5)/0.5;
+    const r = Math.floor(211*(1-ratio) + 173*ratio);
+    const g = Math.floor(211*(1-ratio) + 216*ratio);
+    const b = Math.floor(211*(1-ratio) + 230*ratio);
+    return `rgb(${r},${g},${b})`;
+  }
 }
 
 function update() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   let frameImpulse = 0;
-
-  // 計算速度最大最小
-  let speeds = particles.map(p => Math.sqrt(p.vx*p.vx + p.vy*p.vy));
-  let maxSpeed = Math.max(...speeds);
-  let minSpeed = Math.min(...speeds);
+  const referenceSpeed = Math.sqrt(initialTemp)/100 * 1.5; // 可調整絕對速度參考
 
   for (let p of particles) {
     p.x += p.vx;
@@ -174,9 +167,8 @@ function update() {
     if (p.y - p.radius < 0) { frameImpulse += Math.abs(2*p.vy) * 10000; p.vy *= -1; p.y = p.radius; }
     if (p.y + p.radius > canvas.height) { frameImpulse += Math.abs(2*p.vy) * 10000; p.vy *= -1; p.y = canvas.height - p.radius; }
 
-    // 顏色漸層
     let speed = Math.sqrt(p.vx*p.vx + p.vy*p.vy);
-    ctx.fillStyle = getGradientColor(speed, minSpeed, maxSpeed);
+    ctx.fillStyle = getColorByAbsoluteSpeed(speed, referenceSpeed);
 
     ctx.beginPath();
     ctx.arc(p.x, p.y, p.radius, 0, 2*Math.PI);
@@ -214,7 +206,7 @@ document.getElementById("startBtn").onclick = () => {
 
 document.getElementById("resetBtn").onclick = () => {
   running = false;
-  tempInput.disabled = false;
+  tempInput.disabled
   numInput.disabled = false;
   initParticles();
   ctx.clearRect(0,0,canvas.width,canvas.height);
@@ -223,7 +215,6 @@ document.getElementById("resetBtn").onclick = () => {
   pressureEl.textContent = "0";
   avgFramesEl.textContent = "幀數: 0";
 };
-
 initParticles();
 </script>
 </body>
