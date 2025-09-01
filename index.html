@@ -24,7 +24,6 @@
   <div class="stats">
     平均速度: <span id="avgSpeed">0</span> |
     RMS速度: <span id="rmsSpeed">0</span> |
-    溫度: <span id="temperature">0</span> |
     壓力: <span id="pressure">0</span> |
     <span id="avgFrames">幀數: 0</span>
   </div>
@@ -52,7 +51,6 @@ const numValue = document.getElementById("numValue");
 
 const avgSpeedEl = document.getElementById("avgSpeed");
 const rmsSpeedEl = document.getElementById("rmsSpeed");
-const temperatureEl = document.getElementById("temperature");
 const pressureEl = document.getElementById("pressure");
 const avgFramesEl = document.getElementById("avgFrames");
 
@@ -90,7 +88,6 @@ function computeStats() {
   let avgSpeed = totalSpeed / particles.length;
   let rmsSpeed = Math.sqrt(totalSpeedSq / particles.length);
 
-  // 滑動平均
   avgSpeedHistory.push(avgSpeed);
   rmsSpeedHistory.push(rmsSpeed);
   if(avgSpeedHistory.length > framesForAverage) avgSpeedHistory.shift();
@@ -101,7 +98,6 @@ function computeStats() {
 
   avgSpeedEl.textContent = avgSpeedSmoothed.toFixed(2);
   rmsSpeedEl.textContent = rmsSpeedSmoothed.toFixed(2);
-  temperatureEl.textContent = (rmsSpeedSmoothed*rmsSpeedSmoothed).toFixed(2);
 }
 
 function handleCollisions() {
@@ -112,7 +108,6 @@ function handleCollisions() {
       let dy = p2.y - p1.y;
       let dist = Math.sqrt(dx*dx + dy*dy);
       if(dist < p1.radius + p2.radius){
-        // 彈性碰撞公式 (2D)
         let nx = dx / dist;
         let ny = dy / dist;
         let p = 2*(p1.vx*nx + p1.vy*ny - p2.vx*nx - p2.vy*ny)/(p1.mass + p2.mass);
@@ -120,7 +115,7 @@ function handleCollisions() {
         p1.vy -= p*p2.mass*ny;
         p2.vx += p*p1.mass*nx;
         p2.vy += p*p1.mass*ny;
-        // 碰撞後略微分離避免重疊
+
         let overlap = p1.radius + p2.radius - dist;
         p1.x -= nx*overlap/2;
         p1.y -= ny*overlap/2;
@@ -140,10 +135,10 @@ function update() {
     p.x += p.vx;
     p.y += p.vy;
 
-    if (p.x - p.radius < 0) { frameImpulse += Math.abs(2*p.vx) * 10000; p.vx *= -1; }
-    if (p.x + p.radius > canvas.width) { frameImpulse += Math.abs(2*p.vx) * 10000; p.vx *= -1; }
-    if (p.y - p.radius < 0) { frameImpulse += Math.abs(2*p.vy) * 10000; p.vy *= -1; }
-    if (p.y + p.radius > canvas.height) { frameImpulse += Math.abs(2*p.vy) * 10000; p.vy *= -1; }
+    if (p.x - p.radius < 0) { frameImpulse += Math.abs(2*p.vx) * 10000; p.vx *= -1; p.x = p.radius; }
+    if (p.x + p.radius > canvas.width) { frameImpulse += Math.abs(2*p.vx) * 10000; p.vx *= -1; p.x = canvas.width - p.radius; }
+    if (p.y - p.radius < 0) { frameImpulse += Math.abs(2*p.vy) * 10000; p.vy *= -1; p.y = p.radius; }
+    if (p.y + p.radius > canvas.height) { frameImpulse += Math.abs(2*p.vy) * 10000; p.vy *= -1; p.y = canvas.height - p.radius; }
 
     ctx.beginPath();
     ctx.arc(p.x, p.y, p.radius, 0, 2*Math.PI);
@@ -187,7 +182,6 @@ document.getElementById("resetBtn").onclick = () => {
   ctx.clearRect(0,0,canvas.width,canvas.height);
   avgSpeedEl.textContent = "0";
   rmsSpeedEl.textContent = "0";
-  temperatureEl.textContent = "0";
   pressureEl.textContent = "0";
   avgFramesEl.textContent = "幀數: 0";
 };
