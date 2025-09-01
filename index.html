@@ -93,11 +93,11 @@
         p.y += p.vy;
 
         // 左右牆碰撞
-        if (p.x - p.radius < 0) { accumulatedImpulse += Math.abs(2*p.vx)*10000; p.vx *= -1; }
-        if (p.x + p.radius > canvas.width) { accumulatedImpulse += Math.abs(2*p.vx)*10000; p.vx *= -1; }
+        if (p.x - p.radius < 0) { accumulatedImpulse += Math.abs(2*p.vx) * 1000000; p.vx *= -1; }
+        if (p.x + p.radius > canvas.width) { accumulatedImpulse += Math.abs(2*p.vx) * 1000000; p.vx *= -1; }
         // 上下牆碰撞
-        if (p.y - p.radius < 0) { accumulatedImpulse += Math.abs(2*p.vy)*10000; p.vy *= -1; }
-        if (p.y + p.radius > canvas.height) { accumulatedImpulse += Math.abs(2*p.vy)*10000; p.vy *= -1; }
+        if (p.y - p.radius < 0) { accumulatedImpulse += Math.abs(2*p.vy) * 1000000; p.vy *= -1; }
+        if (p.y + p.radius > canvas.height) { accumulatedImpulse += Math.abs(2*p.vy) * 1000000; p.vy *= -1; }
 
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.radius, 0, 2*Math.PI);
