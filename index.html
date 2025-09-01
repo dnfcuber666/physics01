@@ -59,15 +59,16 @@ numInput.addEventListener("input", () => numValue.textContent = numInput.value);
 
 function initParticles() {
   particles = [];
-  let speedScale = Math.sqrt(initialTemp) / 100;
+  let speedScale = Math.sqrt(initialTemp) / 100; // 固定速度大小
   for (let i = 0; i < numParticles; i++) {
-    let angle = Math.random() * 2 * Math.PI;
-    let speed = speedScale * (0.5 + Math.random());
+    let angle = Math.random() * 2 * Math.PI; // 隨機方向
+    let vx = speedScale * Math.cos(angle);
+    let vy = speedScale * Math.sin(angle);
     particles.push({
       x: Math.random() * (canvas.width - 2 * radius) + radius,
       y: Math.random() * (canvas.height - 2 * radius) + radius,
-      vx: speed * Math.cos(angle),
-      vy: speed * Math.sin(angle),
+      vx: vx,
+      vy: vy,
       radius: radius,
       mass: 1
     });
@@ -131,6 +132,11 @@ function update() {
 
   let frameImpulse = 0;
 
+  // 計算速度最大最小，用於顏色漸層
+  let speeds = particles.map(p => Math.sqrt(p.vx*p.vx + p.vy*p.vy));
+  let maxSpeed = Math.max(...speeds);
+  let minSpeed = Math.min(...speeds);
+
   for (let p of particles) {
     p.x += p.vx;
     p.y += p.vy;
@@ -139,6 +145,13 @@ function update() {
     if (p.x + p.radius > canvas.width) { frameImpulse += Math.abs(2*p.vx) * 10000; p.vx *= -1; p.x = canvas.width - p.radius; }
     if (p.y - p.radius < 0) { frameImpulse += Math.abs(2*p.vy) * 10000; p.vy *= -1; p.y = p.radius; }
     if (p.y + p.radius > canvas.height) { frameImpulse += Math.abs(2*p.vy) * 10000; p.vy *= -1; p.y = canvas.height - p.radius; }
+
+    // 顏色漸層：藍色慢、紅色快
+    let speed = Math.sqrt(p.vx*p.vx + p.vy*p.vy);
+    let t = (speed - minSpeed)/(maxSpeed - minSpeed + 0.0001); // 防除零
+    let r = Math.floor(255*t);
+    let b = Math.floor(255*(1-t));
+    ctx.fillStyle = `rgb(${r},0,${b})`;
 
     ctx.beginPath();
     ctx.arc(p.x, p.y, p.radius, 0, 2*Math.PI);
