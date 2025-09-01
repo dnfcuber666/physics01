@@ -38,9 +38,8 @@
     let initialTemp = 4000;
     let running = false;
 
-    let frameCount = 0;
-    let accumulatedImpulse = 0;
-    const framesPerUnit = 100; // 每 100 幀計算一次平均壓力
+    const framesForAverage = 100; // 最近 100 幀計算壓力
+    let impulseHistory = [];
 
     const tempInput = document.getElementById("tempInput");
     const tempValue = document.getElementById("tempValue");
@@ -51,7 +50,6 @@
     const temperatureEl = document.getElementById("temperature");
     const pressureEl = document.getElementById("pressure");
 
-    // 更新滑桿顯示
     tempInput.addEventListener("input", () => tempValue.textContent = tempInput.value);
     numInput.addEventListener("input", () => numValue.textContent = numInput.value);
 
@@ -69,6 +67,7 @@
           radius: radius
         });
       }
+      impulseHistory = [];
     }
 
     function computeStats() {
@@ -88,37 +87,33 @@
     function update() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+      let frameImpulse = 0;
+
       for (let p of particles) {
         p.x += p.vx;
         p.y += p.vy;
 
-        // 左右牆碰撞
-        if (p.x - p.radius < 0) { accumulatedImpulse += Math.abs(2*p.vx) * 1000000; p.vx *= -1; }
-        if (p.x + p.radius > canvas.width) { accumulatedImpulse += Math.abs(2*p.vx) * 1000000; p.vx *= -1; }
-        // 上下牆碰撞
-        if (p.y - p.radius < 0) { accumulatedImpulse += Math.abs(2*p.vy) * 1000000; p.vy *= -1; }
-        if (p.y + p.radius > canvas.height) { accumulatedImpulse += Math.abs(2*p.vy) * 1000000; p.vy *= -1; }
+        if (p.x - p.radius < 0) { frameImpulse += Math.abs(2*p.vx); p.vx *= -1; }
+        if (p.x + p.radius > canvas.width) { frameImpulse += Math.abs(2*p.vx); p.vx *= -1; }
+        if (p.y - p.radius < 0) { frameImpulse += Math.abs(2*p.vy); p.vy *= -1; }
+        if (p.y + p.radius > canvas.height) { frameImpulse += Math.abs(2*p.vy); p.vy *= -1; }
 
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.radius, 0, 2*Math.PI);
         ctx.fill();
       }
 
-      frameCount++;
+      // 滑動窗口累計最近 100 幀
+      impulseHistory.push(frameImpulse);
+      if (impulseHistory.length > framesForAverage) impulseHistory.shift();
 
-      if (frameCount >= framesPerUnit) {
-        // 平均壓力 = 累積衝量 / 周長 / 幀數
-        let containerLength = 2 * (canvas.width + canvas.height);
-        let P = accumulatedImpulse / containerLength / framesPerUnit;
-        pressureEl.textContent = P.toFixed(2);
-
-        // 重置累積
-        accumulatedImpulse = 0;
-        frameCount = 0;
-      }
+      // 計算最近 100 幀的平均壓力
+      let totalImpulse = impulseHistory.reduce((a,b) => a+b, 0);
+      let containerLength = 2 * (canvas.width + canvas.height);
+      let P = totalImpulse / containerLength / impulseHistory.length;
+      pressureEl.textContent = P.toFixed(2);
 
       computeStats();
-
       if (running) requestAnimationFrame(update);
     }
 
@@ -143,8 +138,6 @@
       avgSpeedEl.textContent = "0";
       temperatureEl.textContent = "0";
       pressureEl.textContent = "0";
-      accumulatedImpulse = 0;
-      frameCount = 0;
     };
 
     initParticles();
