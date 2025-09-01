@@ -16,7 +16,7 @@
   <div class="controls">
     <label>初始溫度: <input type="range" id="tempInput" min="1000" max="100000" value="4000" step="100"></label>
     <span id="tempValue">4000</span>
-    <label>粒子數量: <input type="range" id="numInput" min="100" max="500" value="200" step="1"></label>
+    <label>粒子數量: <input type="range" id="numInput" min="100" max="2000" value="500" step="1"></label>
     <span id="numValue">200</span>
     <button id="startBtn">開始</button>
     <button id="resetBtn">重設</button>
@@ -33,7 +33,7 @@
     const ctx = canvas.getContext("2d");
 
     let particles = [];
-    let numParticles = 200;
+    let numParticles = 500;
     let radius = 5;
     let initialTemp = 4000;
     let running = false;
@@ -93,10 +93,10 @@
         p.x += p.vx;
         p.y += p.vy;
 
-        if (p.x - p.radius < 0) { frameImpulse += Math.abs(2*p.vx)*1000000; p.vx *= -1; }
-        if (p.x + p.radius > canvas.width) { frameImpulse += Math.abs(2*p.vx)*1000000; p.vx *= -1; }
-        if (p.y - p.radius < 0) { frameImpulse += Math.abs(2*p.vy)*1000000; p.vy *= -1; }
-        if (p.y + p.radius > canvas.height) { frameImpulse += Math.abs(2*p.vy)*1000000; p.vy *= -1; }
+        if (p.x - p.radius < 0) { frameImpulse += Math.abs(2*p.vx) * 10000000; p.vx *= -1; }
+        if (p.x + p.radius > canvas.width) { frameImpulse += Math.abs(2*p.vx) * 10000000; p.vx *= -1; }
+        if (p.y - p.radius < 0) { frameImpulse += Math.abs(2*p.vy) * 10000000; p.vy *= -1; }
+        if (p.y + p.radius > canvas.height) { frameImpulse += Math.abs(2*p.vy) * 10000000; p.vy *= -1; }
 
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.radius, 0, 2*Math.PI);
