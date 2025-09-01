@@ -120,15 +120,15 @@ function getColorByAbsoluteSpeed(speed, maxSpeed){
   const t = Math.min(speed/maxSpeed,1);
   if(t<0.5){
     const ratio = t/0.5;
-    const r = Math.floor(255*(1-ratio)+211*ratio);
-    const g = Math.floor(0*(1-ratio)+211*ratio);
-    const b = Math.floor(0*(1-ratio)+211*ratio);
+    const r = Math.floor(173*(1-ratio)+211*ratio);
+    const g = Math.floor(216*(1-ratio)+211*ratio);
+    const b = Math.floor(230*(1-ratio)+211*ratio);
     return `rgb(${r},${g},${b})`;
   } else {
     const ratio = (t-0.5)/0.5;
-    const r = Math.floor(211*(1-ratio)+173*ratio);
-    const g = Math.floor(211*(1-ratio)+216*ratio);
-    const b = Math.floor(211*(1-ratio)+230*ratio);
+    const r = Math.floor(211*(1-ratio)+255*ratio);
+    const g = Math.floor(211*(1-ratio)+0*ratio);
+    const b = Math.floor(211*(1-ratio)+0*ratio);
     return `rgb(${r},${g},${b})`;
   }
 }
