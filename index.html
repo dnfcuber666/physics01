@@ -49,7 +49,7 @@ const framesForAverage = 500;
 let impulseHistory = [];
 let avgSpeedHistory = [];
 let rmsSpeedHistory = [];
-const maxParticlesPerBin = 100; 
+const maxParticlesPerBin = 100;
 
 const tempInput = document.getElementById("tempInput");
 const tempValue = document.getElementById("tempValue");
@@ -82,15 +82,20 @@ function interpolateColor(c1,c2,f){
 }
 
 function getColorByAbsoluteSpeed(v){
-  let c=colorStops[colorStops.length-1].color;
-  for(let j=0;j<colorStops.length-1;j++){
-    if(v>=colorStops[j].v && v<colorStops[j+1].v){
-      let f=(v-colorStops[j].v)/(colorStops[j+1].v-colorStops[j].v);
-      c=interpolateColor(colorStops[j].color,colorStops[j+1].color,f);
-      break;
+  let c;
+  if(v <= colorStops[0].v){
+    c = colorStops[0].color;
+  } else if(v >= colorStops[colorStops.length-1].v){
+    c = colorStops[colorStops.length-1].color;
+  } else {
+    for(let j=0;j<colorStops.length-1;j++){
+      if(v>=colorStops[j].v && v<colorStops[j+1].v){
+        let f=(v-colorStops[j].v)/(colorStops[j+1].v-colorStops[j].v);
+        c = interpolateColor(colorStops[j].color,colorStops[j+1].color,f);
+        break;
+      }
     }
   }
-  if(v<colorStops[0].v) c=colorStops[0].color;
   return c;
 }
 
@@ -162,19 +167,13 @@ function drawHistogram(){
     histCtx.fillStyle='gray';
     histCtx.fillRect(i*(histCanvas.width/bins),histCanvas.height-h,histCanvas.width/bins-1,h);
   }
+
   // 顏色圖
   const legendHeight=15;
   for(let x=0;x<histCanvas.width;x++){
     let frac=x/histCanvas.width;
     let v=frac*maxSpeed;
-    let c=colorStops[colorStops.length-1].color;
-    for(let j=0;j<colorStops.length-1;j++){
-      if(v>=colorStops[j].v && v<colorStops[j+1].v){
-        let f=(v-colorStops[j].v)/(colorStops[j+1].v-colorStops[j].v);
-        c=interpolateColor(colorStops[j].color,colorStops[j+1].color,f);
-        break;
-      }
-    }
+    let c = getColorByAbsoluteSpeed(v);
     histCtx.fillStyle=c;
     histCtx.fillRect(x,histCanvas.height-legendHeight,1,legendHeight);
   }
@@ -211,15 +210,12 @@ document.getElementById("startBtn").onclick=()=>{
     initialTemp=parseFloat(tempInput.value);
     numParticles=parseInt(numInput.value);
     tempInput.disabled=true; numInput.disabled=true;
-    initParticles();
-    running=true;
-    update();
+    initParticles(); running=true; update();
   }
 };
 
 document.getElementById("resetBtn").onclick=()=>{
-  running=false;
-  tempInput.disabled=false; numInput.disabled=false;
+  running=false; tempInput.disabled=false; numInput.disabled=false;
   initParticles();
   ctx.clearRect(0,0,canvas.width,canvas.height);
   histCtx.clearRect(0,0,histCanvas.width,histCanvas.height);
@@ -227,7 +223,6 @@ document.getElementById("resetBtn").onclick=()=>{
 };
 
 initParticles();
-drawHistogram();
 </script>
 </body>
 </html>
